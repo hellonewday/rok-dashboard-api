@@ -15,6 +15,7 @@ router.get("/", (req, res, next) => {
         sort: { power: -1 },
       },
     })
+    .sort({ day: -1, month: -1, year: -1 })
     .exec((error, documents) => {
       console.log(error);
       if (error) return res.status(400).json({ success: false, error: error });
@@ -74,7 +75,7 @@ router.get("/today", (req, res, next) => {
       },
     })
     .sort({ hour: -1 })
-    .limit(req.body.compare ? 2 : 99999)
+    .limit(2)
     .exec((error, documents) => {
       console.log(error);
       if (error) return res.status(400).json({ success: false, error: error });
@@ -87,57 +88,125 @@ router.get("/today", (req, res, next) => {
           year: item.year,
           month: item.month,
           logs: req.query.loggable ? item.logs : [], // statistics
-          sum: req.query.summary ? {
-            powers: item.logs.reduce((total, num) => {
-              return total + parseInt(num.power);
-            }, 0),
-            kill_points: item.logs.reduce((total, num) => {
-              return total + parseInt(num.kill_points);
-            }, 0),
-            tier_1: item.logs.reduce((total, num) => {
-              return total +parseInt(num.tier_1);
-            }, 0),
-            tier_2: item.logs.reduce((total, num) => {
-              return total + parseInt(num.tier_2);
-            }, 0),
-            tier_3: item.logs.reduce((total, num) => {
-              return total + parseInt(num.tier_3);
-            }, 0),
-            tier_4: item.logs.reduce((total, num) => {
-              return total + parseInt(num.tier_4);
-            }, 0),
-            tier_5: item.logs.reduce((total, num) => {
-              return total + parseInt(num.tier_5);
-            }, 0),
-            rss_assistance: item.logs.reduce((total, num) => {
-              return total + parseInt(num.rss_assistance);
-            }, 0),
-          } : {},
+          sum: req.query.summary
+            ? {
+                powers: item.logs.reduce((total, num) => {
+                  return total + parseInt(num.power);
+                }, 0),
+                kill_points: item.logs.reduce((total, num) => {
+                  return total + parseInt(num.kill_points);
+                }, 0),
+                tier_1: item.logs.reduce((total, num) => {
+                  return total + parseInt(num.tier_1);
+                }, 0),
+                tier_2: item.logs.reduce((total, num) => {
+                  return total + parseInt(num.tier_2);
+                }, 0),
+                tier_3: item.logs.reduce((total, num) => {
+                  return total + parseInt(num.tier_3);
+                }, 0),
+                tier_4: item.logs.reduce((total, num) => {
+                  return total + parseInt(num.tier_4);
+                }, 0),
+                tier_5: item.logs.reduce((total, num) => {
+                  return total + parseInt(num.tier_5);
+                }, 0),
+                rss_assistance: item.logs.reduce((total, num) => {
+                  return total + parseInt(num.rss_assistance);
+                }, 0),
+              }
+            : {},
         };
       });
-      let result_sum = result.map((item) => {
-        return item.sum;
-      });
-      let compares = []
-      
-      let compare = req.query.compare && req.query.summary
-        ? {
-            powers: numberWithCommas(result_sum[0].powers - result_sum[1].powers),
-            kill_points: numberWithCommas(result_sum[0].kill_points - result_sum[1].kill_points),
-            tier_1: numberWithCommas(result_sum[0].tier_1 - result_sum[1].tier_1),
-            tier_2: numberWithCommas(result_sum[0].tier_2 - result_sum[1].tier_2),
-            tier_3: numberWithCommas(result_sum[0].tier_3 - result_sum[1].tier_3),
-            tier_4: numberWithCommas(result_sum[0].tier_4 - result_sum[1].tier_4),
-            tier_5: numberWithCommas(result_sum[0].tier_5 - result_sum[1].tier_5),
-          }
-        : {};
+      // let result_sum = result.map((item) => {
+      //   return item.sum;
+      // });
+
+      // let compare = req.query.compare && req.query.summary
+      //   ? {
+      //       powers: numberWithCommas(result_sum[0].powers - result_sum[1].powers),
+      //       kill_points: numberWithCommas(result_sum[0].kill_points - result_sum[1].kill_points),
+      //       tier_1: numberWithCommas(result_sum[0].tier_1 - result_sum[1].tier_1),
+      //       tier_2: numberWithCommas(result_sum[0].tier_2 - result_sum[1].tier_2),
+      //       tier_3: numberWithCommas(result_sum[0].tier_3 - result_sum[1].tier_3),
+      //       tier_4: numberWithCommas(result_sum[0].tier_4 - result_sum[1].tier_4),
+      //       tier_5: numberWithCommas(result_sum[0].tier_5 - result_sum[1].tier_5),
+      //     }
+      //   : {};
 
       return res.status(200).json({
         result: result,
-        compare: compare,
       });
     });
 });
+
+router.get("/person/:id", (req, res, next) => {
+  Report.find()
+    .populate({
+      path: "logs",
+      match: { governor_id: { $eq: req.params.id } },
+    })
+    .sort({ body: 1 })
+    .exec((error, documents) => {
+      console.log(error);
+      if (error) return res.status(400).json({ success: false, error: error });
+      return res.status(200).json({
+        result: documents.map((item) => {
+          return {
+            id: item._id,
+            date:
+              item.hour +
+              ":00:00 " +
+              item.day +
+              "/" +
+              item.month +
+              "/" +
+              item.year,
+            data: item.logs,
+          };
+        }),
+      });
+    });
+});
+
+/*
+.map((item) => {
+          return {
+            id: item._id,
+            hour: item.hour,
+            day: item.day,
+            year: item.year,
+            month: item.month,
+            logs: item.logs,
+            sum: {
+              powers: item.logs.reduce((total, num) => {
+                return total + num.power;
+              }, 0),
+              kill_points: item.logs.reduce((total, num) => {
+                return total + num.kill_points;
+              }, 0),
+              tier_1: item.logs.reduce((total, num) => {
+                return total + num.tier_1;
+              }, 0),
+              tier_2: item.logs.reduce((total, num) => {
+                return total + num.tier_2;
+              }, 0),
+              tier_3: item.logs.reduce((total, num) => {
+                return total + num.tier_3;
+              }, 0),
+              tier_4: item.logs.reduce((total, num) => {
+                return total + num.tier_4;
+              }, 0),
+              tier_5: item.logs.reduce((total, num) => {
+                return total + parseInt(num.tier_5);
+              }, 0),
+              rss_assistance: item.logs.reduce((total, num) => {
+                return total + parseInt(num.rss_assistance);
+              }, 0),
+            },
+          };
+        })
+        */
 
 router.get("/top/:type/:number", (req, res, next) => {
   if (req.params.number == null || req.params.type == null) {
